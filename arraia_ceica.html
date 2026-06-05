@@ -246,25 +246,40 @@ function get(params) {
     });
 }
 
-// POST para analisarPix — URLSearchParams = sem preflight CORS, GAS lê via e.parameter
-function postPix(apiKey, base64, mimeType) {
-  var api = getAPI();
-  if (!api) { mostrarConfig(); return Promise.reject(new Error("URL nao configurada")); }
-  var form = new URLSearchParams();
-  form.append("action",   "analisarPix");
-  form.append("apiKey",   apiKey);
-  form.append("base64",   base64);
-  form.append("mimeType", mimeType);
-  return fetch(api, {
+// Chamada DIRETA à API Anthropic do browser
+// Header "anthropic-dangerous-direct-browser-access: true" habilita CORS oficial
+function chamarClaude(apiKey, base64, mimeType) {
+  var isPDF = mimeType === "application/pdf";
+  var content = [];
+  if (isPDF) {
+    content.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } });
+  } else {
+    content.push({ type: "image", source: { type: "base64", media_type: mimeType || "image/jpeg", data: base64 } });
+  }
+  content.push({ type: "text", text: 'Analise este comprovante Pix. Retorne APENAS JSON valido sem texto extra: {"valor":"25.00","data":"YYYY-MM-DD","hora":"HH:MM","pagador":"nome completo","banco":"instituicao","id_transacao":"codigo se houver"}' });
+
+  return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    // application/x-www-form-urlencoded = "simple request" = sem preflight OPTIONS
-    // GAS lê os campos via e.parameter (igual ao GET)
-    body: form
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5",
+      max_tokens: 400,
+      messages: [{ role: "user", content: content }]
+    })
   })
   .then(function(r) { return r.json(); })
-  .then(function(j) {
-    if (!j.ok) throw new Error(j.erro || "Erro no proxy");
-    return j.data;
+  .then(function(json) {
+    if (!json.content || !json.content[0]) throw new Error("Resposta vazia da IA");
+    var txt   = json.content[0].text || "{}";
+    var clean = txt.replace(/```json/g,"").replace(/```/g,"").trim();
+    var match = clean.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("IA nao retornou JSON: " + txt.substring(0,100));
+    return { dados: JSON.parse(match[0]) };
   });
 }
 
@@ -388,7 +403,7 @@ function analisar(file){
   document.getElementById("pf").classList.remove("on");
   document.getElementById("dw").classList.remove("on");
   toB64(file).then(function(b64){
-    return postPix(key, b64, file.type);   // <-- POST, não GET
+    return chamarClaude(key, b64, file.type);
   }).then(function(res){
     if(res.erro){throw new Error(res.erro);}
     var parsed=res.dados||{};
@@ -446,7 +461,7 @@ function processarFila(files){
 // Extrai dados de um arquivo via POST
 function extrairDados(file,key){
   return toB64(file).then(function(b64){
-    return postPix(key, b64, file.type);   // <-- POST, não GET
+    return chamarClaude(key, b64, file.type);
   }).then(function(res){
     if(res.erro){throw new Error(res.erro);}
     var parsed=res.dados||{};
