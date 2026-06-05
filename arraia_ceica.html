@@ -203,8 +203,9 @@ body{font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--t);min-he
     <div class="tgv" id="rtot">R$ 0</div>
     <div style="font-size:.72rem;color:var(--m);margin-top:4px"><span id="rcnt">0</span> comprovantes - <span id="ring">0</span> ingressos</div>
   </div>
-  <div class="stit">Por Equipe</div><div id="req"></div>
-  <div class="stit" style="margin-top:12px">Todos os Comprovantes</div><div id="rtd"></div>
+  
+  <div class="rc" style="border-left:3px solid #FFB300;margin-bottom:14px"><div class="rn">RESUMO</div><div id="resumo-geral"></div></div>
+  <div class="stit">Todos os Comprovantes</div><div id="rtd"></div>
 </div>
 
 <nav class="bnav">
@@ -575,44 +576,23 @@ function renderExt(){
 function renderRel(){
   get({action:"getRelatorio"}).then(function(rel){
     document.getElementById("rtot").textContent="R$ "+parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
-    document.getElementById("rcnt").textContent=PIXS.length;
+    document.getElementById("rcnt").textContent=rel.pixes?rel.pixes.length:PIXS.length;
     document.getElementById("ring").textContent=rel.total_pix_qtd||0;
 
-    var reqEl=document.getElementById("req");
-    reqEl.innerHTML="";
-
-    var cardGeral=document.createElement("div");
-    cardGeral.className="rc";
-    cardGeral.style.cssText="border-left:3px solid #FFB300;margin-bottom:16px";
+    // Resumo comparativo
     var difQtd=parseInt(rel.diferenca_qtd||0);
     var difVal=parseFloat(rel.diferenca_valor||0);
     var difCorQtd=difQtd>0?"#E53935":(difQtd<0?"#4CAF50":"#8A8A78");
     var difCorVal=difVal>0?"#E53935":(difVal<0?"#4CAF50":"#8A8A78");
-    cardGeral.innerHTML='<div class="rn">RESUMO COMPARATIVO</div>'
-      +'<div class="rr"><span class="rl">Ingressos vendidos (clique)</span><span class="rv g">'+(rel.total_vendidos||0)+'</span></div>'
-      +'<div class="rr"><span class="rl">Ingressos com Pix confirmado</span><span class="rv g">'+(rel.total_pix_qtd||0)+'</span></div>'
-      +'<div class="rr"><span class="rl">Diferenca (vendido - pix)</span><span class="rv" style="color:'+difCorQtd+'">'+difQtd+'</span></div>'
-      +'<div class="rr"><span class="rl">Valor esperado (vendidos x R$25)</span><span class="rv">R$ '+parseFloat(rel.total_esperado||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
+    var resumoEl=document.getElementById("resumo-geral");
+    resumoEl.innerHTML='<div class="rr"><span class="rl">Ingressos marcados (verde)</span><span class="rv g">'+(rel.total_vendidos||0)+'</span></div>'
+      +'<div class="rr"><span class="rl">Ingressos confirmados via Pix</span><span class="rv g">'+(rel.total_pix_qtd||0)+'</span></div>'
+      +'<div class="rr"><span class="rl">Diferenca (marcados - pix)</span><span class="rv" style="color:'+difCorQtd+'">'+difQtd+'</span></div>'
+      +'<div class="rr"><span class="rl">Valor esperado (marcados x R$25)</span><span class="rv">R$ '+parseFloat(rel.total_esperado||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
       +'<div class="rr"><span class="rl">Valor recebido via Pix</span><span class="rv y">R$ '+parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
       +'<div class="rr"><span class="rl">Diferenca (esperado - pix)</span><span class="rv" style="color:'+difCorVal+'">R$ '+difVal.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
-    reqEl.appendChild(cardGeral);
 
-    var titulo=document.createElement("div");
-    titulo.className="stit";titulo.style.marginTop="8px";titulo.textContent="Por Equipe";
-    reqEl.appendChild(titulo);
-
-    (rel.por_equipe||[]).filter(function(e){return e.total_ing>0||e.vendidos_clique>0||e.pix_qtd>0;}).forEach(function(e){
-      var div=document.createElement("div");div.className="rc";
-      var dif=e.vendidos_clique-e.pix_qtd;
-      var cor=dif>0?"#E53935":(dif<0?"#4CAF50":"#8A8A78");
-      div.innerHTML='<div class="rn">'+e.nome+'</div>'
-        +'<div class="rr"><span class="rl">Ingressos vendidos</span><span class="rv g">'+e.vendidos_clique+'</span></div>'
-        +'<div class="rr"><span class="rl">Pix recebidos (qtd)</span><span class="rv y">'+e.pix_qtd+'</span></div>'
-        +'<div class="rr"><span class="rl">Valor Pix</span><span class="rv y">R$ '+parseFloat(e.pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
-        +'<div class="rr"><span class="rl">Pendente de Pix</span><span class="rv" style="color:'+cor+'">'+dif+'</span></div>';
-      reqEl.appendChild(div);
-    });
-
+    // Lista de comprovantes
     var rtdEl=document.getElementById("rtd");
     rtdEl.innerHTML="";
     var pixList=rel.pixes||[];
@@ -630,7 +610,7 @@ function renderRel(){
       rtdEl.appendChild(div);
     });
   }).catch(function(e){
-    document.getElementById("req").innerHTML='<div style="color:#E53935;font-size:.8rem;padding:20px">Erro ao carregar relatorio: '+e.message+'</div>';
+    document.getElementById("resumo-geral").innerHTML='<div style="color:#E53935;font-size:.8rem;padding:20px">Erro ao carregar relatorio: '+e.message+'</div>';
   });
 }
 
