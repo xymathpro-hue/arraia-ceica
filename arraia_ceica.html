@@ -364,26 +364,19 @@ function analisar(file){
   document.getElementById("pf").classList.remove("on");
   document.getElementById("dw").classList.remove("on");
   toB64(file).then(function(b64){
-    var cont=[];
-    if(file.type.startsWith("image/"))cont.push({type:"image",source:{type:"base64",media_type:file.type,data:b64}});
-    else cont.push({type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}});
-    cont.push({type:"text",text:'Analise este comprovante Pix. Retorne APENAS JSON sem texto extra: {"valor":"25.00","data":"YYYY-MM-DD","hora":"HH:MM","pagador":"nome completo","banco":"banco","id_transacao":"codigo"}'});
-    return fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
-      body:JSON.stringify({model:"claude-opus-4-5",max_tokens:300,messages:[{role:"user",content:cont}]})
-    });
-  }).then(function(r){return r.json();})
-  .then(function(d){
-    var txt=d.content&&d.content[0]?d.content[0].text:"{}";
-    var clean=txt.replace(/\u0060\u0060\u0060json|\u0060\u0060\u0060/g,"").trim();
-    var parsed=JSON.parse(clean);
+    return get({action:"analisarPix",apiKey:key,base64:b64,mimeType:file.type});
+  }).then(function(res){
+    if(res.erro){throw new Error(res.erro);}
+    var parsed=res.dados||{};
     function setAI(id,v){if(v){var el=document.getElementById(id);el.value=v;el.classList.add("ai");}}
     setAI("pv",parsed.valor);setAI("pd",parsed.data);setAI("ph",parsed.hora);
     setAI("pp",parsed.pagador);setAI("pb",parsed.banco);setAI("pid",parsed.id_transacao);
     if(parsed.valor){var q=Math.round(parseFloat(parsed.valor)/P);if(q>0)document.getElementById("pq").value=q;}
     document.getElementById("pf").classList.add("on");toast("IA leu o comprovante!");
-  }).catch(function(){document.getElementById("pf").classList.add("on");toast("Preencha manualmente");})
-  .then(function(){document.getElementById("lai").classList.remove("on");});
+  }).catch(function(e){
+    document.getElementById("pf").classList.add("on");
+    toast("Preencha manualmente");
+  }).then(function(){document.getElementById("lai").classList.remove("on");});
 }
 
 function processarFila(files){
@@ -428,21 +421,14 @@ function processarFila(files){
 
 function extrairDados(file,key){
   return toB64(file).then(function(b64){
-    var cont=[];
-    if(file.type.startsWith("image/"))cont.push({type:"image",source:{type:"base64",media_type:file.type,data:b64}});
-    else cont.push({type:"document",source:{type:"base64",media_type:"application/pdf",data:b64}});
-    cont.push({type:"text",text:'Analise este comprovante Pix. Retorne APENAS JSON: {"valor":"25.00","data":"YYYY-MM-DD","hora":"HH:MM","pagador":"nome completo","banco":"banco","id_transacao":"codigo"}'});
-    return fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
-      body:JSON.stringify({model:"claude-opus-4-5",max_tokens:300,messages:[{role:"user",content:cont}]})
-    }).then(function(r){return r.json();}).then(function(d){
-      var txt=d.content&&d.content[0]?d.content[0].text:"{}";
-      var parsed=JSON.parse(txt.replace(/\u0060\u0060\u0060json|\u0060\u0060\u0060/g,"").trim());
-      var eqId=document.getElementById("peq").value;
-      var eq=EQS.find(function(e){return e.id===eqId;});
-      var valor=parseFloat(parsed.valor||0);
-      return {valor:valor,qtd:Math.max(1,Math.round(valor/P)),data:parsed.data||"",hora:parsed.hora||"",pagador:parsed.pagador||"",banco:parsed.banco||"",eqId:eqId,eqNome:eq?eq.nome:"-",transacao:parsed.id_transacao||"",obs:""};
-    });
+    return get({action:"analisarPix",apiKey:key,base64:b64,mimeType:file.type});
+  }).then(function(res){
+    if(res.erro){throw new Error(res.erro);}
+    var parsed=res.dados||{};
+    var eqId=document.getElementById("peq").value;
+    var eq=EQS.find(function(e){return e.id===eqId;});
+    var valor=parseFloat(parsed.valor||0);
+    return {valor:valor,qtd:Math.max(1,Math.round(valor/P)),data:parsed.data||"",hora:parsed.hora||"",pagador:parsed.pagador||"",banco:parsed.banco||"",eqId:eqId,eqNome:eq?eq.nome:"-",transacao:parsed.id_transacao||"",obs:""};
   });
 }
 
