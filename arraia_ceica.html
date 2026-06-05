@@ -246,15 +246,20 @@ function get(params) {
     });
 }
 
-// POST para analisarPix — envia base64 no body, evita CORS e limite de URL
+// POST para analisarPix — URLSearchParams = sem preflight CORS, GAS lê via e.parameter
 function postPix(apiKey, base64, mimeType) {
   var api = getAPI();
   if (!api) { mostrarConfig(); return Promise.reject(new Error("URL nao configurada")); }
+  var form = new URLSearchParams();
+  form.append("action",   "analisarPix");
+  form.append("apiKey",   apiKey);
+  form.append("base64",   base64);
+  form.append("mimeType", mimeType);
   return fetch(api, {
     method: "POST",
-    // text/plain evita preflight OPTIONS — o GAS aceita sem CORS adicional
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action: "analisarPix", apiKey: apiKey, base64: base64, mimeType: mimeType })
+    // application/x-www-form-urlencoded = "simple request" = sem preflight OPTIONS
+    // GAS lê os campos via e.parameter (igual ao GET)
+    body: form
   })
   .then(function(r) { return r.json(); })
   .then(function(j) {
