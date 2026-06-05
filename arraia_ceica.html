@@ -340,10 +340,13 @@ function renderPresum() {
 }
 
 function updHdr(){
-  var tv=PIXS.reduce(function(s,p){return s+parseInt(p.qtd||0);},0);
-  var val=PIXS.reduce(function(s,p){return s+parseFloat(p.valor||0);},0);
-  document.getElementById("hv").textContent=tv;
-  document.getElementById("hval").textContent=val.toLocaleString("pt-BR",{minimumFractionDigits:2});
+  // Header shows total ingressos vendidos (clicks) from resumo
+  get({action:"getResumo"}).then(function(res){
+    var tv=res.reduce(function(s,e){return s+(e.vendidos||0);},0);
+    var val=tv*P;
+    document.getElementById("hv").textContent=tv;
+    document.getElementById("hval").textContent=val.toLocaleString("pt-BR",{minimumFractionDigits:2});
+  }).catch(function(){});
 }
 
 document.getElementById("fi").addEventListener("change",function(e){
@@ -544,49 +547,68 @@ function renderExt(){
 }
 
 function renderRel(){
-  var tv=PIXS.reduce(function(s,p){return s+parseFloat(p.valor||0);},0);
-  var ti=PIXS.reduce(function(s,p){return s+parseInt(p.qtd||0);},0);
-  document.getElementById("rtot").textContent="R$ "+tv.toLocaleString("pt-BR",{minimumFractionDigits:2});
-  document.getElementById("rcnt").textContent=PIXS.length;
-  document.getElementById("ring").textContent=ti;
+  get({action:"getRelatorio"}).then(function(rel){
+    document.getElementById("rtot").textContent="R$ "+parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
+    document.getElementById("rcnt").textContent=PIXS.length;
+    document.getElementById("ring").textContent=rel.total_pix_qtd||0;
 
-  var pe={};
-  EQS.forEach(function(e){pe[e.id]={nome:e.nome,valor:0,qtd:0,count:0};});
-  PIXS.forEach(function(p){
-    if(pe[p.eqId]){pe[p.eqId].valor+=parseFloat(p.valor||0);pe[p.eqId].qtd+=parseInt(p.qtd||0);pe[p.eqId].count++;}
-  });
+    // Comparativo geral
+    var reqEl=document.getElementById("req");
+    reqEl.innerHTML="";
 
-  var reqEl=document.getElementById("req");
-  reqEl.innerHTML="";
-  var temDados=false;
-  Object.values(pe).filter(function(e){return e.count>0;}).forEach(function(e){
-    temDados=true;
-    var div=document.createElement("div");
-    div.className="rc";
-    div.innerHTML='<div class="rn">'+e.nome+'</div>'
-      +'<div class="rr"><span class="rl">Comprovantes</span><span class="rv">'+e.count+'</span></div>'
-      +'<div class="rr"><span class="rl">Ingressos</span><span class="rv g">'+e.qtd+'</span></div>'
-      +'<div class="rr"><span class="rl">Valor</span><span class="rv y">R$ '+e.valor.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
-    reqEl.appendChild(div);
-  });
-  if(!temDados) reqEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Sem pagamentos.</div>';
+    // Card resumo comparativo
+    var cardGeral=document.createElement("div");
+    cardGeral.className="rc";
+    cardGeral.style.cssText="border-left:3px solid #FFB300;margin-bottom:16px";
+    var difQtd=parseInt(rel.diferenca_qtd||0);
+    var difVal=parseFloat(rel.diferenca_valor||0);
+    var difCorQtd=difQtd>0?"#E53935":(difQtd<0?"#4CAF50":"#8A8A78");
+    var difCorVal=difVal>0?"#E53935":(difVal<0?"#4CAF50":"#8A8A78");
+    cardGeral.innerHTML='<div class="rn">RESUMO COMPARATIVO</div>'
+      +'<div class="rr"><span class="rl">Ingressos vendidos (clique)</span><span class="rv g">'+(rel.total_vendidos||0)+'</span></div>'
+      +'<div class="rr"><span class="rl">Ingressos com Pix confirmado</span><span class="rv g">'+(rel.total_pix_qtd||0)+'</span></div>'
+      +'<div class="rr"><span class="rl">Diferenca (vendido - pix)</span><span class="rv" style="color:'+difCorQtd+'">'+difQtd+'</span></div>'
+      +'<div class="rr"><span class="rl">Valor esperado (vendidos x R$25)</span><span class="rv">R$ '+parseFloat(rel.total_esperado||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
+      +'<div class="rr"><span class="rl">Valor recebido via Pix</span><span class="rv y">R$ '+parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
+      +'<div class="rr"><span class="rl">Diferenca (esperado - pix)</span><span class="rv" style="color:'+difCorVal+'">R$ '+difVal.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
+    reqEl.appendChild(cardGeral);
 
-  var rtdEl=document.getElementById("rtd");
-  rtdEl.innerHTML="";
-  if(!PIXS.length){
-    rtdEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Sem lancamentos.</div>';
-    return;
-  }
-  PIXS.forEach(function(p){
-    var div=document.createElement("div");
-    div.className="pc";
-    div.style.marginBottom="6px";
-    var info=(p.data||"-")+(p.hora?" as "+p.hora:"")+" - "+(p.banco||"-")+" - "+p.qtd+" ingresso(s)"+(p.transacao?" - "+p.transacao:"");
-    div.innerHTML='<div class="pct"><div class="pcv">R$ '+parseFloat(p.valor).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</div>'
-      +'<span class="pce">'+p.eqNome+'</span></div>'
-      +'<div class="pcn">'+p.pagador+'</div>'
-      +'<div class="pci">'+info+'</div>';
-    rtdEl.appendChild(div);
+    // Por equipe
+    var titulo=document.createElement("div");
+    titulo.className="stit";titulo.style.marginTop="8px";titulo.textContent="Por Equipe";
+    reqEl.appendChild(titulo);
+
+    (rel.por_equipe||[]).filter(function(e){return e.total_ing>0||e.vendidos_clique>0||e.pix_qtd>0;}).forEach(function(e){
+      var div=document.createElement("div");div.className="rc";
+      var dif=e.vendidos_clique-e.pix_qtd;
+      var cor=dif>0?"#E53935":(dif<0?"#4CAF50":"#8A8A78");
+      div.innerHTML='<div class="rn">'+e.nome+'</div>'
+        +'<div class="rr"><span class="rl">Ingressos vendidos</span><span class="rv g">'+e.vendidos_clique+'</span></div>'
+        +'<div class="rr"><span class="rl">Pix recebidos (qtd)</span><span class="rv y">'+e.pix_qtd+'</span></div>'
+        +'<div class="rr"><span class="rl">Valor Pix</span><span class="rv y">R$ '+parseFloat(e.pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
+        +'<div class="rr"><span class="rl">Pendente de Pix</span><span class="rv" style="color:'+cor+'">'+dif+'</span></div>';
+      reqEl.appendChild(div);
+    });
+
+    // Lista comprovantes
+    var rtdEl=document.getElementById("rtd");
+    rtdEl.innerHTML="";
+    var pixList=rel.pixes||[];
+    if(!pixList.length){
+      rtdEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Sem lancamentos.</div>';
+      return;
+    }
+    pixList.forEach(function(p){
+      var div=document.createElement("div");div.className="pc";div.style.marginBottom="6px";
+      var info=(p.data||"-")+(p.hora?" as "+p.hora:"")+" - "+(p.banco||"-")+" - "+p.qtd+" ingresso(s)"+(p.transacao?" - "+p.transacao:"");
+      div.innerHTML='<div class="pct"><div class="pcv">R$ '+parseFloat(p.valor).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</div>'
+        +'<span class="pce">'+p.eqNome+'</span></div>'
+        +'<div class="pcn">'+p.pagador+'</div>'
+        +'<div class="pci">'+info+'</div>';
+      rtdEl.appendChild(div);
+    });
+  }).catch(function(e){
+    document.getElementById("req").innerHTML='<div style="color:#E53935;font-size:.8rem;padding:20px">Erro ao carregar relatorio: '+e.message+'</div>';
   });
 }
 
