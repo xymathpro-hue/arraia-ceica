@@ -220,6 +220,7 @@ var P = 25;
 var EQS = [], PIXS = [], EQ = "eq-geral", _pix = null;
 
 function getAPI() { return localStorage.getItem("api_url") || ""; }
+
 function salvarURL() {
   var u = document.getElementById("url-input").value.trim();
   if (!u) { toast("Cole a URL do Apps Script"); return; }
@@ -229,6 +230,7 @@ function salvarURL() {
   init();
 }
 
+// GET para ações normais (sem base64)
 function get(params) {
   var api = getAPI();
   if (!api) { mostrarConfig(); return Promise.reject(new Error("URL nao configurada")); }
@@ -242,6 +244,23 @@ function get(params) {
       if (!j.ok) throw new Error(j.erro || "Erro");
       return j.data;
     });
+}
+
+// POST para analisarPix — envia base64 no body, evita CORS e limite de URL
+function postPix(apiKey, base64, mimeType) {
+  var api = getAPI();
+  if (!api) { mostrarConfig(); return Promise.reject(new Error("URL nao configurada")); }
+  return fetch(api, {
+    method: "POST",
+    // text/plain evita preflight OPTIONS — o GAS aceita sem CORS adicional
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action: "analisarPix", apiKey: apiKey, base64: base64, mimeType: mimeType })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(j) {
+    if (!j.ok) throw new Error(j.erro || "Erro no proxy");
+    return j.data;
+  });
 }
 
 function mostrarConfig() {
@@ -340,7 +359,6 @@ function renderPresum() {
 }
 
 function updHdr(){
-  // Header shows total ingressos vendidos (clicks) from resumo
   get({action:"getResumo"}).then(function(res){
     var tv=res.reduce(function(s,e){return s+(e.vendidos||0);},0);
     var val=tv*P;
@@ -357,6 +375,7 @@ document.getElementById("fi").addEventListener("change",function(e){
 
 function abrirManual(){cancelPix();document.getElementById("pf").classList.add("on");toast("Preencha os dados");}
 
+// ── ANALISAR via POST (fix CORS) ───────────────────────────────────
 function analisar(file){
   var key=localStorage.getItem("ak");
   if(!key){document.getElementById("apibox").style.display="block";toast("Configure a chave da API");return;}
@@ -364,7 +383,7 @@ function analisar(file){
   document.getElementById("pf").classList.remove("on");
   document.getElementById("dw").classList.remove("on");
   toB64(file).then(function(b64){
-    return get({action:"analisarPix",apiKey:key,base64:b64,mimeType:file.type});
+    return postPix(key, b64, file.type);   // <-- POST, não GET
   }).then(function(res){
     if(res.erro){throw new Error(res.erro);}
     var parsed=res.dados||{};
@@ -375,7 +394,7 @@ function analisar(file){
     document.getElementById("pf").classList.add("on");toast("IA leu o comprovante!");
   }).catch(function(e){
     document.getElementById("pf").classList.add("on");
-    toast("Preencha manualmente");
+    toast("Erro IA: "+e.message+". Preencha manualmente.");
   }).then(function(){document.getElementById("lai").classList.remove("on");});
 }
 
@@ -419,9 +438,10 @@ function processarFila(files){
   next();
 }
 
+// Extrai dados de um arquivo via POST
 function extrairDados(file,key){
   return toB64(file).then(function(b64){
-    return get({action:"analisarPix",apiKey:key,base64:b64,mimeType:file.type});
+    return postPix(key, b64, file.type);   // <-- POST, não GET
   }).then(function(res){
     if(res.erro){throw new Error(res.erro);}
     var parsed=res.dados||{};
@@ -538,11 +558,9 @@ function renderRel(){
     document.getElementById("rcnt").textContent=PIXS.length;
     document.getElementById("ring").textContent=rel.total_pix_qtd||0;
 
-    // Comparativo geral
     var reqEl=document.getElementById("req");
     reqEl.innerHTML="";
 
-    // Card resumo comparativo
     var cardGeral=document.createElement("div");
     cardGeral.className="rc";
     cardGeral.style.cssText="border-left:3px solid #FFB300;margin-bottom:16px";
@@ -559,7 +577,6 @@ function renderRel(){
       +'<div class="rr"><span class="rl">Diferenca (esperado - pix)</span><span class="rv" style="color:'+difCorVal+'">R$ '+difVal.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
     reqEl.appendChild(cardGeral);
 
-    // Por equipe
     var titulo=document.createElement("div");
     titulo.className="stit";titulo.style.marginTop="8px";titulo.textContent="Por Equipe";
     reqEl.appendChild(titulo);
@@ -576,7 +593,6 @@ function renderRel(){
       reqEl.appendChild(div);
     });
 
-    // Lista comprovantes
     var rtdEl=document.getElementById("rtd");
     rtdEl.innerHTML="";
     var pixList=rel.pixes||[];
