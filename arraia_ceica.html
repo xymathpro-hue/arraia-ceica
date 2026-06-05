@@ -481,10 +481,27 @@ function delPix(id){
 
 function renderPl(){
   var el=document.getElementById("pl");
-  if(!PIXS.length){el.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Nenhum comprovante ainda.</div>';return;}
-  el.innerHTML=PIXS.slice().reverse().map(function(p){
-    return '<div class="pc"><div class="pct"><div class="pcv">R$ '+parseFloat(p.valor).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</div><div style="display:flex;align-items:center;gap:6px"><span class="pce">'+p.eqNome+'</span><button class="pdel" onclick="delPix(''+p.id+'')">x</button></div></div><div class="pcn">'+p.pagador+'</div><div class="pci">'+(p.data||"")+(p.hora?" as "+p.hora:"")+" - "+(p.banco||"-")+" - "+p.qtd+" ingresso(s)</div></div>";
-  }).join("");
+  if(!PIXS.length){
+    el.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Nenhum comprovante ainda.</div>';
+    return;
+  }
+  el.innerHTML="";
+  PIXS.slice().reverse().forEach(function(p){
+    var div=document.createElement("div");
+    div.className="pc";
+    var info=p.data||"";
+    if(p.hora) info+=" as "+p.hora;
+    info+=" - "+(p.banco||"-")+" - "+p.qtd+" ingresso(s)";
+    div.innerHTML='<div class="pct"><div class="pcv">R$ '+parseFloat(p.valor).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<span class="pce">'+p.eqNome+'</span>'
+      +'<button class="pdel">x</button>'
+      +'</div></div>'
+      +'<div class="pcn">'+p.pagador+'</div>'
+      +'<div class="pci">'+info+'</div>';
+    div.querySelector(".pdel").onclick=function(){delPix(p.id);};
+    el.appendChild(div);
+  });
 }
 
 function buildPeq(){var sel=document.getElementById("peq");sel.innerHTML="";EQS.forEach(function(eq){var o=document.createElement("option");o.value=eq.id;o.textContent=eq.nome;sel.appendChild(o);});}
@@ -508,9 +525,22 @@ function delExt(id){
 }
 
 function renderExt(){
-  var el=document.getElementById("el"),exts=EQS.filter(function(e){return e.tipo==="externa";});
-  if(!exts.length){el.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:16px">Nenhum grupo ainda.</div>';return;}
-  el.innerHTML=exts.map(function(e){return '<div class="ei '+(EQ===e.id?"on":"")+'"><div><div class="ein">'+e.nome+'</div><div class="eif">Faixa: '+e.ini+' ao '+e.fim+' - '+(e.fim-e.ini+1)+' ingressos</div></div><button class="edel" onclick="delExt(''+e.id+'')">x</button></div>';}).join("");
+  var el=document.getElementById("el");
+  var exts=EQS.filter(function(e){return e.tipo==="externa";});
+  if(!exts.length){
+    el.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:16px">Nenhum grupo ainda.</div>';
+    return;
+  }
+  el.innerHTML="";
+  exts.forEach(function(e){
+    var div=document.createElement("div");
+    div.className="ei"+(EQ===e.id?" on":"");
+    div.innerHTML='<div><div class="ein">'+e.nome+'</div><div class="eif">Faixa: '+e.ini+' ao '+e.fim+' - '+(e.fim-e.ini+1)+' ingressos</div></div>'
+      +'<button class="edel">x</button>';
+    div.querySelector(".edel").onclick=function(ev){ev.stopPropagation();delExt(e.id);};
+    div.onclick=function(){EQ=e.id;buildSel();renderGrade();showPg('ing',document.querySelector('.nb'));};
+    el.appendChild(div);
+  });
 }
 
 function renderRel(){
