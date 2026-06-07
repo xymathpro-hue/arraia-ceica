@@ -280,12 +280,17 @@ body{font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--t);min-he
     <div class="tgv" id="rtot">R$ 0</div>
     <div style="font-size:.72rem;color:var(--m);margin-top:4px"><span id="rcnt">0</span> comprovantes - <span id="ring">0</span> ingressos</div>
   </div>
-  <div class="rc" style="border-left:3px solid #FFB300;margin-bottom:14px">
-    <div class="rn">RESUMO</div>
-    <div id="resumo-geral"></div>
+  <div class="rc" style="border-left:3px solid var(--v);margin-bottom:8px">
+    <div class="rn" style="color:var(--v)">🎟️ INGRESSOS</div>
+    <div id="resumo-ing"></div>
   </div>
-  <div class="stit">Todos os Comprovantes</div>
-  <div id="rtd"></div>
+  <div class="rc" style="border-left:3px solid var(--az);margin-bottom:8px">
+    <div class="rn" style="color:var(--az)">👕 CAMISAS</div>
+    <div id="resumo-cam"></div>
+  </div>
+  <div class="rc" style="border-left:3px solid var(--y);margin-bottom:14px">
+    <div id="resumo-total"></div>
+  </div>
 </div>
 
 <nav class="bnav">
@@ -817,15 +822,24 @@ function renderRel(){
     var difCorQtd=difQtd>0?"#E53935":(difQtd<0?"#4CAF50":"#8A8A78");
     var difCorVal=difVal>0?"#E53935":(difVal<0?"#4CAF50":"#8A8A78");
 
-    document.getElementById("resumo-geral").innerHTML=
+    // Bloco Ingressos
+    document.getElementById("resumo-ing").innerHTML=
       '<div class="rr"><span class="rl">Ingressos marcados (verde)</span><span class="rv g">'+(rel.total_vendidos||0)+'</span></div>'
       +'<div class="rr"><span class="rl">Ingressos confirmados via Pix</span><span class="rv g">'+(rel.total_pix_qtd||0)+'</span></div>'
-      +'<div class="rr"><span class="rl">Diferenca (marcados - pix)</span><span class="rv" style="color:'+difCorQtd+'">'+difQtd+'</span></div>'
+      +'<div class="rr"><span class="rl">Diferenca (marcados - pix)</span><span class="rv" style="color:'+difCorQtd+'">'+ difQtd+'</span></div>'
       +'<div class="rr"><span class="rl">Valor esperado (marcados x R$25)</span><span class="rv">R$ '+parseFloat(rel.total_esperado||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
-      +'<div class="rr"><span class="rl">Valor recebido via Pix (ingressos)</span><span class="rv y">R$ '+parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
-      +'<div class="rr"><span class="rl">Doacoes ('+(rel.total_doacao_qtd||0)+')</span><span class="rv rosa">R$ '+parseFloat(rel.total_doacao_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
-      +'<div class="rr"><span class="rl">Camisas ('+(rel.total_camisa_qtd||0)+')</span><span class="rv az">R$ '+parseFloat(rel.total_camisa_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
-      +'<div class="rr" style="border-top:1px solid #FFB300;margin-top:4px"><span class="rl" style="font-weight:700;color:#FFB300">TOTAL GERAL</span><span class="rv y" style="font-size:1rem">R$ '+totalGeral.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
+      +'<div class="rr"><span class="rl">Valor recebido via Pix</span><span class="rv y">R$ '+parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
+      +'<div class="rr"><span class="rl">Diferenca (esperado - pix)</span><span class="rv" style="color:'+difCorVal+'">R$ '+difVal.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>'
+      +'<div class="rr"><span class="rl">Doacoes ('+(rel.total_doacao_qtd||0)+')</span><span class="rv rosa">R$ '+parseFloat(rel.total_doacao_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
+
+    // Bloco Camisas
+    document.getElementById("resumo-cam").innerHTML=
+      '<div class="rr"><span class="rl">Quantidade vendida</span><span class="rv az">'+(rel.total_camisa_qtd||0)+' camisas</span></div>'
+      +'<div class="rr"><span class="rl">Total arrecadado</span><span class="rv az">R$ '+parseFloat(rel.total_camisa_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
+
+    // Total geral
+    document.getElementById("resumo-total").innerHTML=
+      '<div class="rr" style="padding:6px 0"><span class="rl" style="font-weight:800;color:#FFB300;font-size:.9rem">💰 TOTAL GERAL</span><span class="rv y" style="font-size:1.15rem;font-family:Syne,sans-serif">R$ '+totalGeral.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
 
     // Lista comprovantes ingressos
     var rtdEl=document.getElementById("rtd");
@@ -864,7 +878,7 @@ function renderRel(){
       rtdEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Sem lancamentos.</div>';
     }
   }).catch(function(e){
-    document.getElementById("resumo-geral").innerHTML='<div style="color:#E53935;font-size:.8rem;padding:20px">Erro: '+e.message+'</div>';
+    document.getElementById("resumo-ing").innerHTML='<div style="color:#E53935;font-size:.8rem;padding:20px">Erro: '+e.message+'</div>';
   });
 }
 
