@@ -291,6 +291,8 @@ body{font-family:"DM Sans",sans-serif;background:var(--bg);color:var(--t);min-he
   <div class="rc" style="border-left:3px solid var(--y);margin-bottom:14px">
     <div id="resumo-total"></div>
   </div>
+  <div class="stit">Ingressos e Doações</div><div id="rtd-ing"></div>
+  <div class="stit" style="margin-top:14px;color:var(--az)">👕 Camisas</div><div id="rtd-cam"></div>
 </div>
 
 <nav class="bnav">
@@ -841,13 +843,11 @@ function renderRel(){
     document.getElementById("resumo-total").innerHTML=
       '<div class="rr" style="padding:6px 0"><span class="rl" style="font-weight:800;color:#FFB300;font-size:.9rem">💰 TOTAL GERAL</span><span class="rv y" style="font-size:1.15rem;font-family:Syne,sans-serif">R$ '+totalGeral.toLocaleString("pt-BR",{minimumFractionDigits:2})+'</span></div>';
 
-    // Lista comprovantes ingressos
-    var rtdEl=document.getElementById("rtd");
-    rtdEl.innerHTML="";
-
+    // Lista ingressos
+    var ingEl=document.getElementById("rtd-ing");
+    ingEl.innerHTML="";
     var pixList=rel.pixes||[];
     if(pixList.length){
-      var h2=document.createElement("div");h2.className="stit";h2.style.marginBottom="8px";h2.textContent="Ingressos e Doações";rtdEl.appendChild(h2);
       pixList.forEach(function(p){
         var div=document.createElement("div");div.className="pc"+(p.doacao?" doacao":"");div.style.marginBottom="6px";
         var info=(p.data||"-")+(p.hora?" as "+p.hora:"")+" - "+(p.banco||"-")+" - "+(p.doacao?"doacao":p.qtd+" ingresso(s)");
@@ -856,13 +856,17 @@ function renderRel(){
           +'<span class="pce">'+p.eqNome+'</span></div>'
           +'<div class="pcn">'+p.pagador+'</div>'
           +'<div class="pci">'+info+'</div>';
-        rtdEl.appendChild(div);
+        ingEl.appendChild(div);
       });
+    } else {
+      ingEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:16px">Sem lancamentos.</div>';
     }
 
+    // Lista camisas
+    var camEl=document.getElementById("rtd-cam");
+    camEl.innerHTML="";
     var camisaList=rel.camisas||[];
     if(camisaList.length){
-      var h3=document.createElement("div");h3.className="stit";h3.style.cssText="margin-top:14px;margin-bottom:8px;color:#1976D2";h3.textContent="👕 Camisas";rtdEl.appendChild(h3);
       camisaList.forEach(function(c){
         var div=document.createElement("div");div.className="pc camisa";div.style.marginBottom="6px";
         var info=(c.data||"-")+(c.hora?" as "+c.hora:"")+" - "+(c.banco||"-")+" - "+c.qtd+" camisa(s)";
@@ -870,12 +874,10 @@ function renderRel(){
           +'<span class="pce">'+c.eqNome+'</span></div>'
           +'<div class="pcn">'+c.pagador+'</div>'
           +'<div class="pci">'+info+'</div>';
-        rtdEl.appendChild(div);
+        camEl.appendChild(div);
       });
-    }
-
-    if(!pixList.length&&!camisaList.length){
-      rtdEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:20px">Sem lancamentos.</div>';
+    } else {
+      camEl.innerHTML='<div style="color:#8A8A78;font-size:.8rem;text-align:center;padding:16px">Sem lancamentos.</div>';
     }
   }).catch(function(e){
     document.getElementById("resumo-ing").innerHTML='<div style="color:#E53935;font-size:.8rem;padding:20px">Erro: '+e.message+'</div>';
