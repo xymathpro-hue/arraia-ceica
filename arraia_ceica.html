@@ -885,17 +885,60 @@ function renderRel(){
 }
 
 function expCSV(){
-  var rows=["Tipo,Data,Hora,Pagador,Banco,Equipe,Qtd,Valor,ID,Obs,Doacao"];
-  PIXS.forEach(function(p){
-    rows.push('"ingresso","'+(p.data||"")+'","'+(p.hora||"")+'","'+p.pagador+'","'+(p.banco||"")+'","'+p.eqNome+'",'+p.qtd+','+p.valor+',"'+(p.transacao||"")+'","'+(p.obs||"")+'","'+(p.doacao?"sim":"nao")+'"');
-  });
-  CAMISAS.forEach(function(c){
-    rows.push('"camisa","'+(c.data||"")+'","'+(c.hora||"")+'","'+c.pagador+'","'+(c.banco||"")+'","'+c.eqNome+'",'+c.qtd+','+c.valor+',"'+(c.transacao||"")+'","'+(c.obs||"")+'","nao"');
-  });
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([rows.join("\n")],{type:"text/csv"}));
-  a.download="Arraia_"+new Date().toISOString().slice(0,10)+".csv";
-  a.click();toast("CSV exportado!");
+  // Buscar totais do relatório para incluir no CSV
+  get({action:"getRelatorio"}).then(function(rel){
+    var data = new Date().toLocaleDateString("pt-BR");
+    var rows = [];
+
+    // CABEÇALHO
+    rows.push("ARRAIÁ DA CEIÇA - 3ª EDIÇÃO");
+    rows.push("Gerado em: " + data);
+    rows.push("");
+
+    // RESUMO INGRESSOS
+    rows.push("=== RESUMO INGRESSOS ===");
+    rows.push("Ingressos marcados (verde)," + (rel.total_vendidos||0));
+    rows.push("Ingressos confirmados via Pix," + (rel.total_pix_qtd||0));
+    rows.push("Diferenca (marcados - pix)," + (parseInt(rel.diferenca_qtd||0)));
+    rows.push("Valor esperado (marcados x R$25),R$ " + parseFloat(rel.total_esperado||0).toLocaleString("pt-BR",{minimumFractionDigits:2}));
+    rows.push("Valor recebido via Pix,R$ " + parseFloat(rel.total_pix_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2}));
+    rows.push("Doacoes (" + (rel.total_doacao_qtd||0) + "),R$ " + parseFloat(rel.total_doacao_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2}));
+    rows.push("");
+
+    // RESUMO CAMISAS
+    rows.push("=== RESUMO CAMISAS ===");
+    rows.push("Quantidade vendida," + (rel.total_camisa_qtd||0) + " camisas");
+    rows.push("Total arrecadado,R$ " + parseFloat(rel.total_camisa_valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2}));
+    rows.push("");
+
+    // TOTAL GERAL
+    var totalGeral = parseFloat(rel.total_pix_valor||0) + parseFloat(rel.total_camisa_valor||0);
+    rows.push("=== TOTAL GERAL ===");
+    rows.push("TOTAL GERAL,R$ " + totalGeral.toLocaleString("pt-BR",{minimumFractionDigits:2}));
+    rows.push("");
+
+    // DETALHAMENTO INGRESSOS
+    rows.push("=== COMPROVANTES INGRESSOS ===");
+    rows.push("Data,Hora,Pagador,Banco,Equipe,Qtd,Valor,ID Transacao,Observacao,Doacao");
+    (rel.pixes||[]).forEach(function(p){
+      rows.push('"'+(p.data||"")+'","'+(p.hora||"")+'","'+p.pagador+'","'+(p.banco||"")+'","'+p.eqNome+'",'+p.qtd+','+parseFloat(p.valor||0).toFixed(2)+',"'+(p.transacao||"")+'","'+(p.obs||"")+'","'+(p.doacao?"sim":"nao")+'"')
+    });
+    rows.push("");
+
+    // DETALHAMENTO CAMISAS
+    rows.push("=== COMPROVANTES CAMISAS ===");
+    rows.push("Data,Hora,Pagador,Banco,Equipe,Qtd,Valor,ID Transacao,Observacao");
+    (rel.camisas||[]).forEach(function(c){
+      rows.push('"'+(c.data||"")+'","'+(c.hora||"")+'","'+c.pagador+'","'+(c.banco||"")+'","'+c.eqNome+'",'+c.qtd+','+parseFloat(c.valor||0).toFixed(2)+',"'+(c.transacao||"")+'","'+(c.obs||"")+'"')
+    });
+
+    var bom = "\uFEFF"; // BOM para Excel abrir UTF-8 corretamente
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([bom + rows.join("\n")], {type:"text/csv;charset=utf-8"}));
+    a.download = "Arraia_Prestacao_" + new Date().toISOString().slice(0,10) + ".csv";
+    a.click();
+    toast("CSV exportado!");
+  }).catch(function(e){toast("Erro ao gerar CSV: "+e.message);});
 }
 
 var _t;
